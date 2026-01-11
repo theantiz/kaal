@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Kaal
 
 ## Time aware Rate Limiter  
@@ -35,3 +36,7 @@ Kaal is an API rate limiter that controls requests per client IP using the Token
 | Redis 8.0             | Distributed token storage    |
 | Java 21               | Runtime                      |
 | Gradle 8.10           | Build tool                   |
+=======
+# kaal
+rate-limiter
+>>>>>>> origin/main
