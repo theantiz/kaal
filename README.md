@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Kaal
 
 ## Time aware Rate Limiter  
