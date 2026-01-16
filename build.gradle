@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.5'
+    id 'org.springframework.boot' version '3.5.0'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -31,10 +31,7 @@ dependencies {
     // Webflux for reactive Redis
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
-        implementation 'redis.clients:jedis:5.2.0'
-
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     compileOnly 'org.projectlombok:lombok'
 }
