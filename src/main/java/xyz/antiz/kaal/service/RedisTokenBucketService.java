@@ -2,32 +2,32 @@ package xyz.antiz.kaal.service;
 
 /**
  * Redis key patterns and schema for Token Bucket Rate Limiter
- *
+ * <p>
  * NOMENCLATURE:
- *   rate_limiter:{type}:{identifier}
- *   - type:      "token" | "last_refill"
- *   - identifier: clientId or IP address (String)
- *
+ * rate_limiter:{type}:{identifier}
+ * - type:      "token" | "last_refill"
+ * - identifier: clientId or IP address (String)
+ * <p>
  * KEY PATTERNS:
- *   1. rate_limiter:token:{clientId}     -> Current available token count (Integer)
- *   2. rate_limiter:last_refill:{clientId} -> Last refill timestamp (Unix epoch, Long)
- *
+ * 1. rate_limiter:token:{clientId}     -> Current available token count (Integer)
+ * 2. rate_limiter:last_refill:{clientId} -> Last refill timestamp (Unix epoch, Long)
+ * <p>
  * EXAMPLE USAGE:
- *   Client IP: 192.168.1.100
- *   ┌─────────────────────────────────────┐
- *   │ rate_limiter:token:192.168.1.100   │ -> "7"    (7 tokens available)
- *   │ rate_limiter:last_refill:192.168.1.100 │ -> "1640995200000" (refill timestamp)
- *   └─────────────────────────────────────┘
- *
+ * Client IP: 192.168.1.100
+ * ┌─────────────────────────────────────┐
+ * │ rate_limiter:token:192.168.1.100   │ -> "7"    (7 tokens available)
+ * │ rate_limiter:last_refill:192.168.1.100 │ -> "1640995200000" (refill timestamp)
+ * └─────────────────────────────────────┘
+ * <p>
  * DATA TYPES:
- *   - Token count:    String representation of Integer (7 → "7")
- *   - Timestamp:      String representation of Long (Unix epoch milliseconds)
- *
+ * - Token count:    String representation of Integer (7 → "7")
+ * - Timestamp:      String representation of Long (Unix epoch milliseconds)
+ * <p>
  * STORAGE STRATEGY:
- *   - Atomic Redis operations ensure thread-safety
- *   - TTL auto-expiry prevents stale entries
- *   - IP-based identifiers enable stateless rate limiting
- *
+ * - Atomic Redis operations ensure thread-safety
+ * - TTL auto-expiry prevents stale entries
+ * - IP-based identifiers enable stateless rate limiting
+ * <p>
  * THREAD SAFETY: Redis atomic operations (INCR, SETNX, EXPIRE)
  * SCALABILITY:  Horizontal scaling across Redis cluster/shard
  */
@@ -112,18 +112,20 @@ public class RedisTokenBucketService {
         }
 
         long lastRefillTime = Long.parseLong(lastRefillStr);
-        long elpasedTIme = currentTime - lastRefillTime;
+        long timelapse = currentTime - lastRefillTime;
 
-        if (elpasedTIme <= 0){
+        if (timelapse <= 0) {
             return;
         }
 
-        long tokenToAdd = (elpasedTIme * redisProperties.getRefillRate()) / 1000;
+        long tokenToAdd = (timelapse * redisProperties.getRefillRate()) / 1000;
 
-        if (tokensToAdd <= 0){
+        if (tokenToAdd <= 0) {
             return;
-
         }
+
+
+
     }
 
 
