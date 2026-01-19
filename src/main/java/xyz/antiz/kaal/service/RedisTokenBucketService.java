@@ -33,103 +33,118 @@ package xyz.antiz.kaal.service;
  */
 
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
-import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.stereotype.Service;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import lombok.RequiredArgsConstructor;
 import xyz.antiz.kaal.config.RateLimiterProperties;
-import xyz.antiz.kaal.config.RedisProperties;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Jedis;
+import java.time.Instant;
 
 //store token bucket state in redis
 //manage tokens per client
-//provide rate limiting logic
 //handle token refill based on time
-
-@RequiredArgsConstructor
+//provide rate limiting logic.
 @Service
+@RequiredArgsConstructor
 public class RedisTokenBucketService {
 
-    private static final String LAST_REFILL_KEY_PREFIX = "rate_limiter:last_refill:";
-    private final String TOKEN_KEY_PREFIX = "rate_limiter:tokens:";
-    @Autowired
-    private JedisPool jedisPool;
-    private RateLimiterProperties rateLimiterProperties;
-    @Autowired
-    private ClientHttpRequestFactorySettings clientHttpRequestFactorySettings;
-    @Autowired
-    private RedisProperties redisProperties;
+    private final JedisPool jedisPool;
 
+    private final RateLimiterProperties properties;
+
+    private final String TOKENS_KEY_PREFIX = "rate_limiter:tokens:";
+    private static final String LAST_REFILL_KEY_PREFIX = "rate_limiter:last_refill:";
+
+    //Pattern
+    //rate_limiter:{type}:{clientId}
+
+    //rate_limiter:tokens:192.168.1.100 > Current Token Count
+    //rate_limiter:last_refill:192.168.1.100 > Last Refill Timestamp
+
+    //rate_limiter:tokens:192.168.1.100 > "7"
+    // rate_limiter:last_refill:192.168.1.100 > "12324342342"
 
     public boolean isAllowed(String clientId) {
-        String tokenKey = TOKEN_KEY_PREFIX + clientId;
+
+        String tokenKey = TOKENS_KEY_PREFIX + clientId;
 
         try (Jedis jedis = jedisPool.getResource()) {
             refillTokens(clientId, jedis);
+
             String tokenStr = jedis.get(tokenKey);
 
-            long currentTokens = tokenStr != null ? Long.parseLong(tokenStr) : rateLimiterProperties.getCapacity();
+            long currentTokens = tokenStr != null ? Long.parseLong(tokenStr) : properties.getCapacity();
 
-            if (currentTokens <= 0) {
+            if(currentTokens <= 0) {
                 return false;
             }
 
             long decremented = jedis.decr(tokenKey);
             return decremented >= 0;
-
         }
     }
 
     public long getCapacity(String clientId) {
-        String tokenKey = TOKEN_KEY_PREFIX + clientId;
-        return rateLimiterProperties.getCapacity() - (tokenKey != null ? Long.parseLong(tokenKey) : 0);
+
+        return properties.getCapacity();
     }
 
     public long getAvailableTokens(String clientId) {
-        String tokenKey = TOKEN_KEY_PREFIX + clientId;
-        try (Jedis jedis = jedisPool.getResource()) {
+
+        String tokenKey = TOKENS_KEY_PREFIX + clientId;
+
+        try(Jedis jedis = jedisPool.getResource()) {
+
             refillTokens(clientId, jedis);
             String tokenStr = jedis.get(tokenKey);
-            return tokenStr != null ? Long.parseLong(tokenStr) : rateLimiterProperties.getCapacity();
+            return tokenStr != null ? Long.parseLong(tokenStr) : properties.getCapacity();
 
         }
     }
 
     public void refillTokens(String clientId, Jedis jedis) {
-        String tokenKey = TOKEN_KEY_PREFIX + clientId;
+
+        String tokensKey = TOKENS_KEY_PREFIX + clientId;
         String lastRefillKey = LAST_REFILL_KEY_PREFIX + clientId;
 
-        long currentTime = System.currentTimeMillis();
-
+        long now = System.currentTimeMillis();
         String lastRefillStr = jedis.get(lastRefillKey);
+        if(lastRefillStr == null){
 
-        if (lastRefillStr == null) {
-            jedis.set(tokenKey, String.valueOf(rateLimiterProperties.getCapacity()));
-            jedis.set(lastRefillKey, String.valueOf(currentTime));
+            jedis.set(tokensKey, String.valueOf(properties.getCapacity()));
+            jedis.set(lastRefillKey, String.valueOf(now));
             return;
         }
 
         long lastRefillTime = Long.parseLong(lastRefillStr);
-        long timelapse = currentTime - lastRefillTime;
+        long elapsedTime = now - lastRefillTime;
 
-        if (timelapse <= 0) {
+        if(elapsedTime <= 0) {
             return;
         }
 
-        long tokenToAdd = (timelapse * redisProperties.getRefillRate()) / 1000;
-
-        if (tokenToAdd <= 0) {
+        long tokensToAdd = (elapsedTime * properties.getRefillRate()) / 1000;
+        if(tokensToAdd <= 0) {
             return;
         }
 
+        String tokenStr = jedis.get(tokensKey);
 
+        long currentTokens = tokenStr !=null ? Long.parseLong(tokenStr) : properties.getCapacity();
+        long newTokens = Math.min(properties.getCapacity(), currentTokens + tokensToAdd);
+
+        jedis.set(tokensKey, String.valueOf(newTokens));
+        jedis.set(lastRefillKey, String.valueOf(now));
 
     }
 
+    // tokensToAdd = (elapsedTime * properties.getRefillRate()) / 1000;
 
+    //elapsedTime is in msec
+    //refillRate is tokens per second
+    //Convert msec to sec  / 1000
+
+    //ElapsedTime > 2000ms (2sec)
+    //RefillRate = 5 tokens per second
+    //Cal > (2000 * 5) / 1000 > 10 tokens
 }
-
-
-
