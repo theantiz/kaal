@@ -1,18 +1,37 @@
 package xyz.antiz.kaal.config;
 
-import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
 
-
-//We have defined config. in two place -> this class is typesafe (internal) & application.properties is for external use case
-
-@Data
-@Component // to make this class as Spring Bean
-@ConfigurationProperties (prefix = "rate-limiter")
+@Configuration
+@ConfigurationProperties(prefix = "rate-limiter")
 public class RateLimiterProperties {
-    private int capacity = 10;
-    private int refillRate = 5;
-    private int timeout = 5000;
-    private String apiServerUrl = "http://localhost:8080";
+
+    private long capacity;
+    private long refillRate;
+    private String apiServerUrl;
+
+    public long getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(long capacity) {
+        this.capacity = capacity;
+    }
+
+    public long getRefillRate() {
+        return refillRate;
+    }
+
+    public void setRefillRate(long refillRate) {
+        this.refillRate = refillRate;
+    }
+
+    public String getApiServerUrl() {
+        return apiServerUrl;
+    }
+
+    public void setApiServerUrl(String apiServerUrl) {
+        this.apiServerUrl = apiServerUrl;
+    }
 }
