@@ -23,17 +23,14 @@ ext {
 }
 
 dependencies {
-    // Core Gateway + Rate Limiting
-    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'redis.clients:jedis:5.2.0'
-
-    // Webflux for reactive Redis
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
-
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+    implementation 'org.springframework.boot:spring-boot-starter'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'redis.clients:jedis'
     compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 }
 
 dependencyManagement {
