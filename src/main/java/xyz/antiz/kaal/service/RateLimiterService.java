@@ -10,7 +10,8 @@ public class RateLimiterService {
     private final RedisTokenBucketService redisTokenBucketService;
 
     public boolean isAllowed(String clientId) {
-        return redisTokenBucketService.isAllowed(clientId);
+        // FIX: call existing method
+        return redisTokenBucketService.tryConsume(clientId);
     }
 
     public long getCapacity(String clientId) {
