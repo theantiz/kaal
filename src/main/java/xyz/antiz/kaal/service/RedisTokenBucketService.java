@@ -1,20 +1,34 @@
 package xyz.antiz.kaal.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import xyz.antiz.kaal.config.RateLimiterProperties;
+
+import java.time.Clock;
 
 @Service
 public class RedisTokenBucketService {
 
     private final JedisPool jedisPool;
     private final RateLimiterProperties properties;
+    private final Clock clock;
 
+    @Autowired
     public RedisTokenBucketService(JedisPool jedisPool,
                                    RateLimiterProperties properties) {
         this.jedisPool = jedisPool;
         this.properties = properties;
+        this.clock = Clock.systemUTC();
+    }
+
+    RedisTokenBucketService(JedisPool jedisPool,
+                            RateLimiterProperties properties,
+                            Clock clock) {
+        this.jedisPool = jedisPool;
+        this.properties = properties;
+        this.clock = clock;
     }
 
     public boolean tryConsume(String clientId) {
@@ -24,7 +38,7 @@ public class RedisTokenBucketService {
 
         try (Jedis jedis = jedisPool.getResource()) {
 
-            long now = System.currentTimeMillis();
+            long now = clock.millis();
 
             String lastTimeStr = jedis.get(timeKey);
             long lastTime = lastTimeStr == null ? now : Long.parseLong(lastTimeStr);
@@ -42,14 +56,21 @@ public class RedisTokenBucketService {
                     currentTokens + tokensToAdd
             );
 
+            // Preserve fractional elapsed time so high-frequency calls still refill over time.
+            long updatedLastTime = lastTime;
+            if (tokensToAdd > 0) {
+                long millisConsumedForRefill = (tokensToAdd * 1000) / properties.getRefillRate();
+                updatedLastTime = lastTime + millisConsumedForRefill;
+            }
+
             if (newTokens <= 0) {
                 jedis.set(tokensKey, "0");
-                jedis.set(timeKey, String.valueOf(now));
+                jedis.set(timeKey, String.valueOf(updatedLastTime));
                 return false;
             }
 
             jedis.set(tokensKey, String.valueOf(newTokens - 1));
-            jedis.set(timeKey, String.valueOf(now));
+            jedis.set(timeKey, String.valueOf(updatedLastTime));
             return true;
         }
     }
