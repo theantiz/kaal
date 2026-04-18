@@ -41,10 +41,14 @@ public class TokenBucketRateLimiterFilter extends AbstractGatewayFilterFactory<T
             ServerHttpRequest request = exchange.getRequest();
             ServerHttpResponse response = exchange.getResponse();
 
+            // Identify the caller from the forwarded client IP when possible,
+            // otherwise fall back to the direct remote address.
             String clientId = getClientId(request);
 
+            // The rate limiter makes the allow/deny decision before the request reaches the upstream service.
             if(!rateLimiterService.isAllowed(clientId)){
 
+                // HTTP 429 is the standard response for rate-limited requests.
                 response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
                 addRateLimitHeaders(response, clientId);
 
@@ -59,6 +63,7 @@ public class TokenBucketRateLimiterFilter extends AbstractGatewayFilterFactory<T
             }
 
             return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+                // Even successful requests expose the latest bucket state through headers.
                 addRateLimitHeaders(response, clientId);
             }));
         };
